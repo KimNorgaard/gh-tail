@@ -54,6 +54,7 @@ func (s *Releases) Poll(ctx context.Context) ([]event.Event, error) {
 			Action: event.Published,
 			Actor:  r.Author.Login,
 			Author: r.Author.Login,
+			Ref:    r.TagName,
 			Text:   r.TagName,
 			URL:    r.HTMLURL,
 		}

@@ -9,16 +9,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
+	"github.com/cli/go-gh/v2/pkg/term"
 
+	"github.com/containdk/KimNorgaard/gh-tail/internal/details"
 	"github.com/containdk/KimNorgaard/gh-tail/internal/event"
 	"github.com/containdk/KimNorgaard/gh-tail/internal/output"
+	"github.com/containdk/KimNorgaard/gh-tail/internal/poll"
 	"github.com/containdk/KimNorgaard/gh-tail/internal/source"
+	"github.com/containdk/KimNorgaard/gh-tail/internal/tui"
 )
 
 var version = "dev"
@@ -36,6 +39,7 @@ func run(args []string) error {
 		kindsFlag   string
 		filterFlag  string
 		jsonOut     bool
+		interactive bool
 		interval    time.Duration
 		backlog     int
 		showVersion bool
@@ -46,6 +50,8 @@ func run(args []string) error {
 	flags.StringVar(&kindsFlag, "kinds", "tag,pr,issue", "comma-separated kind, kind:action or kind:* entries. Kinds: tag,branch,pr,issue,release,package")
 	flags.StringVar(&filterFlag, "filter", "", "space-separated [-]actor:, author: or label: terms; * globs, @me is you")
 	flags.BoolVar(&jsonOut, "json", false, "print events as JSON lines")
+	flags.BoolVar(&interactive, "i", false, "shorthand for --interactive")
+	flags.BoolVar(&interactive, "interactive", false, "browse events and their details in a full-screen view")
 	flags.DurationVar(&interval, "interval", time.Minute, "poll interval, raised to the server's X-Poll-Interval")
 	flags.IntVar(&backlog, "n", 10, "number of past events to show at startup")
 	flags.BoolVar(&showVersion, "version", false, "print the version")
@@ -61,6 +67,14 @@ func run(args []string) error {
 		return nil
 	}
 
+	terminal := term.FromEnv()
+	if interactive && jsonOut {
+		return errors.New("--interactive and --json can't be combined")
+	}
+	if interactive && !terminal.IsTerminalOutput() {
+		return errors.New("--interactive needs a terminal")
+	}
+
 	repo, err := resolveRepo(repoFlag)
 	if err != nil {
 		return err
@@ -74,56 +88,56 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-
 	filter, err := parseFilter(client, filterFlag)
 	if err != nil {
 		return err
 	}
-	sources := source.New(client, repo, source.Options{Selection: sel, Filter: filter, Backlog: backlog})
 
-	printEvent := output.Table(os.Stdout)
-	if jsonOut {
-		printEvent = output.JSON(os.Stdout)
+	poller := &poll.Poller{
+		Sources:   source.New(client, repo, source.Options{Selection: sel, Filter: filter, Backlog: backlog}),
+		Filter:    filter,
+		Backlog:   backlog,
+		Interval:  interval,
+		Transport: transport,
 	}
+	name := repo.Owner + "/" + repo.Name
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	for first := true; ; first = false {
-		var batch []event.Event
-		for _, s := range sources {
-			events, err := s.Poll(ctx)
-			if ctx.Err() != nil {
-				return nil
-			}
-			if err != nil {
-				// A failing first poll is a setup problem. Later failures are usually transient.
-				if first {
-					return err
-				}
-				fmt.Fprintln(os.Stderr, "gh-tail:", err)
-				continue
-			}
-			batch = append(batch, events...)
-		}
-
-		batch = slices.DeleteFunc(batch, func(e event.Event) bool { return !filter.Match(e) })
-		slices.SortStableFunc(batch, func(a, b event.Event) int { return a.Time.Compare(b.Time) })
-		if first && len(batch) > backlog {
-			batch = batch[len(batch)-backlog:]
-		}
-		for _, e := range batch {
-			if err := printEvent(e); err != nil {
-				return err
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(max(interval, transport.PollInterval())):
-		}
+	if interactive {
+		return tui.Run(ctx, poller, details.New(client, repo), tui.Options{Repo: name, Theme: markdownTheme(terminal)})
 	}
+	if jsonOut {
+		return poller.Run(ctx, output.NewJSON(os.Stdout, os.Stderr))
+	}
+
+	stream := output.NewStream(os.Stdout, os.Stderr, name, terminal.IsTerminalOutput(), func() int {
+		w, _, err := terminal.Size()
+		if err != nil {
+			return 0
+		}
+		return w
+	})
+	animated := make(chan struct{})
+	animCtx, stopAnim := context.WithCancel(ctx)
+	go func() {
+		stream.Animate(animCtx)
+		close(animated)
+	}()
+	err = poller.Run(ctx, stream)
+	stopAnim()
+	<-animated
+	return err
+}
+
+// markdownTheme picks the details theme from the terminal background. It queries the
+// terminal, so it must run before the TUI takes over input.
+func markdownTheme(t term.Term) string {
+	if theme := t.Theme(); theme != "none" {
+		return theme
+	}
+	return "notty"
 }
 
 func resolveRepo(s string) (repository.Repository, error) {

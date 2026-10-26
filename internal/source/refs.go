@@ -131,7 +131,9 @@ func (s *Refs) diff(cur map[string]string, now time.Time) []pendingRef {
 				Repo:   s.repo.Owner + "/" + s.repo.Name,
 				Kind:   s.kind,
 				Action: action,
+				Ref:    name,
 				Text:   text,
+				URL:    s.refURL(action, name),
 			},
 			key:   key,
 			since: s.prevPoll,
@@ -160,6 +162,18 @@ func (s *Refs) diff(cur map[string]string, now time.Time) []pendingRef {
 // refKinds maps an Events API ref_type to a kind. Other ref types, such as repository,
 // map to "".
 var refKinds = map[string]event.Kind{"tag": event.Tag, "branch": event.Branch}
+
+// refURL links to the tag's or branch's page, except for deleted refs, which have none.
+func (s *Refs) refURL(action, name string) string {
+	if action == event.Deleted {
+		return ""
+	}
+	page := "tree"
+	if s.kind == event.Tag {
+		page = "releases/tag"
+	}
+	return fmt.Sprintf("https://%s/%s/%s/%s/%s", s.repo.Host, s.repo.Owner, s.repo.Name, page, name)
+}
 
 func refKey(kind event.Kind, action, name, sha string) string {
 	return fmt.Sprintf("%s:%s:%s:%s", kind, action, name, sha)

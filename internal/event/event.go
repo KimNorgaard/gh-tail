@@ -25,6 +25,7 @@ type Event struct {
 	Kind   Kind      `json:"kind"`
 	Action string    `json:"action"`
 	Number int       `json:"number,omitempty"`
+	Ref    string    `json:"ref,omitempty"`
 	Actor  string    `json:"actor,omitempty"`
 	Author string    `json:"author,omitempty"`
 	Labels []string  `json:"labels,omitempty"`

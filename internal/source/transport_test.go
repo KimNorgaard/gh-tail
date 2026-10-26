@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -24,8 +25,14 @@ func TestTransportConditionalRequests(t *testing.T) {
 
 	tr := NewTransport(http.DefaultTransport)
 	client := &http.Client{Transport: tr}
+	var interval PollInterval
+	ctx := WithPollInterval(context.Background(), &interval)
 	for i := range 3 {
-		resp, err := client.Get(srv.URL)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -38,7 +45,7 @@ func TestTransportConditionalRequests(t *testing.T) {
 	if conditional != 2 {
 		t.Errorf("got %d conditional requests, want 2", conditional)
 	}
-	if tr.PollInterval() != time.Minute {
-		t.Errorf("got poll interval %v, want 1m", tr.PollInterval())
+	if interval.Get() != time.Minute {
+		t.Errorf("got poll interval %v, want 1m", interval.Get())
 	}
 }

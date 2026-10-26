@@ -2,6 +2,7 @@ package source
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -10,16 +11,18 @@ import (
 	"time"
 )
 
-// Transport makes GET requests conditional with ETags and records X-Poll-Interval.
+// Transport makes GET requests conditional with ETags. It records X-Poll-Interval into
+// the request context's PollInterval, if any.
 // A 304 is answered from the cache as a 200, so callers see an unchanged body and
 // rely on their own dedup. GitHub doesn't count a 304 against the rate limit.
 //
 // ponytail: one cache entry per URL for the process lifetime, add eviction if that grows.
 type Transport struct {
-	next         http.RoundTripper
-	mu           sync.Mutex
-	cache        map[string]cachedResponse
-	pollInterval atomic.Int64
+	next     http.RoundTripper
+	mu       sync.Mutex
+	cache    map[string]cachedResponse
+	requests atomic.Int64
+	cached   atomic.Int64
 }
 
 type cachedResponse struct {
@@ -32,12 +35,27 @@ func NewTransport(next http.RoundTripper) *Transport {
 	return &Transport{next: next, cache: map[string]cachedResponse{}}
 }
 
-// PollInterval returns the largest X-Poll-Interval the server has sent, or zero.
-func (t *Transport) PollInterval() time.Duration {
-	return time.Duration(t.pollInterval.Load()) * time.Second
+// PollInterval holds the largest X-Poll-Interval that requests made with its context
+// received. Endpoints differ, such as 60 seconds for events and 300 for refs, so each
+// source gets its own.
+type PollInterval struct{ seconds atomic.Int64 }
+
+func (p *PollInterval) Get() time.Duration { return time.Duration(p.seconds.Load()) * time.Second }
+
+type pollIntervalKey struct{}
+
+// WithPollInterval returns a context whose requests record into p.
+func WithPollInterval(ctx context.Context, p *PollInterval) context.Context {
+	return context.WithValue(ctx, pollIntervalKey{}, p)
+}
+
+// Stats returns the number of requests made and how many of them the cache answered.
+func (t *Transport) Stats() (requests, cached int64) {
+	return t.requests.Load(), t.cached.Load()
 }
 
 func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
+	t.requests.Add(1)
 	if r.Method != http.MethodGet {
 		return t.next.RoundTrip(r)
 	}
@@ -55,11 +73,14 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if s, err := strconv.ParseInt(resp.Header.Get("X-Poll-Interval"), 10, 64); err == nil && s > t.pollInterval.Load() {
-		t.pollInterval.Store(s)
+	if p, ok := r.Context().Value(pollIntervalKey{}).(*PollInterval); ok {
+		if s, err := strconv.ParseInt(resp.Header.Get("X-Poll-Interval"), 10, 64); err == nil && s > p.seconds.Load() {
+			p.seconds.Store(s)
+		}
 	}
 
 	if ok && resp.StatusCode == http.StatusNotModified {
+		t.cached.Add(1)
 		_ = resp.Body.Close()
 		return &http.Response{
 			Status:        "200 OK",

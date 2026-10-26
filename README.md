@@ -44,9 +44,32 @@ gh tail --kinds 'pr:*'                   # every PR action
 gh tail --filter '-actor:*[bot]'         # hide bots
 gh tail --filter 'author:@me label:bug'  # your PRs and issues labeled bug
 gh tail --json | jq 'select(.kind == "tag")'
+gh tail -i                               # interactive view with details
 ```
 
 On start, gh-tail prints the last `-n` matching events, then polls and prints new events as they appear. Stop it with Ctrl-C.
+
+In a terminal, rows are colored by kind and action, and PR and issue numbers are [OSC 8](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) links to GitHub (⌘-click in Ghostty, iTerm2 and most modern terminals). A status line below the rows shows when the next poll runs, how many requests were made and how many the ETag cache answered, and the last poll error. Piped output and `--json` stay plain.
+
+### Interactive view
+
+`gh tail -i` opens a full-screen list of events that follows new events as they arrive.
+
+| Key | Action |
+|-----|--------|
+| `↑` `↓`, `k` `j`, mouse wheel | Move. Moving off the newest event stops following |
+| `PgUp` `PgDn`, `b` `f` | Move a page |
+| `g` `G` | First event, newest event. `G` follows again |
+| `Enter`, click a selected row | Details |
+| `o` | Open in the browser |
+| `Esc`, `q` | Back from details |
+| `q`, `Ctrl-C` | Quit |
+
+Details are fetched when opened:
+
+- **PR or issue:** state, author, labels, branches and size, and the rendered body
+- **Release:** the release notes
+- **Tag:** the commits since the previous semver tag
 
 ### Flags
 
@@ -56,7 +79,8 @@ On start, gh-tail prints the last `-n` matching events, then polls and prints ne
 | `--kinds` | `tag,pr,issue` | Comma-separated `kind`, `kind:action` or `kind:*` entries. See below |
 | `--filter` | none | Show only events matching these terms. See below |
 | `--json` | off | Print one JSON object per line |
-| `--interval` | `1m` | Poll interval. Raised to the server's `X-Poll-Interval` when that is longer |
+| `-i`, `--interactive` | off | Browse events and their details in a full-screen view |
+| `--interval` | `1m` | Poll interval. Raised per endpoint to the server's `X-Poll-Interval`, which is 300 seconds for tags and branches |
 | `-n` | `10` | Number of past events to show at startup |
 | `--version` | | Print the version |
 
@@ -109,6 +133,7 @@ Each event is one line:
 | `repo` | `owner/repo` |
 | `kind` | One of the kinds above |
 | `number` | PR or issue number, for `pr` and `issue` |
+| `ref` | Tag or branch name, for `tag`, `branch` and `release` |
 | `action` | What happened |
 | `actor` | Login of the user who caused the event, when known |
 | `author` | Login of the PR or issue author or the release publisher |
@@ -133,8 +158,9 @@ Each event is one line:
 ```mermaid
 flowchart LR
     T[Transport<br/>ETag cache, X-Poll-Interval] --> I[Issues] & E[RepoEvents] & R[Releases] & F[Refs] & P[Packages]
-    I & E & R & F & P --> L[poll loop<br/>sort by time]
-    L --> O[Printer<br/>table or JSON]
+    I & E & R & F & P --> L[Poller<br/>per-source schedule, filter, sort]
+    L -- events, status --> S[Stream<br/>table and status line] & J[JSON] & U[TUI]
+    U -- on Enter --> D[Details fetcher]
 ```
 
 - `internal/source`: each source polls one API and returns only events it has not returned before. `source.New` picks the sources the `--kinds` selection needs.
@@ -143,10 +169,13 @@ flowchart LR
   - `Releases`: the release list
   - `Refs`: `git/matching-refs/tags` or `heads`, diffed between polls. Each change is matched to its Events API entry for the actor
   - `Packages`: package versions of packages linked to the repository
-- `internal/source/transport.go`: makes GET requests conditional with `If-None-Match`. GitHub does not count a `304 Not Modified` against the rate limit, so polling an idle repository is free.
-- `internal/event`: the normalized `Event` that sources emit and printers render.
-- `internal/output`: the table and JSON printers.
-- `main.go`: flags and the poll loop.
+- `internal/source/transport.go`: makes GET requests conditional with `If-None-Match`. GitHub does not count a `304 Not Modified` against the rate limit, so polling an idle repository is free. It records each source's `X-Poll-Interval` separately.
+- `internal/poll`: schedules each source at its own interval, filters and sorts events, and reports events and status to a sink.
+- `internal/event`: the normalized `Event`, the `--kinds` selection and the `--filter` query.
+- `internal/output`: row styling shared with the TUI, the stream sink with its status line, and the JSON sink.
+- `internal/tui`: the interactive view, built on Bubble Tea.
+- `internal/details`: fetches a PR's or issue's body, release notes or a tag's commits as Markdown, rendered with gh's theme.
+- `main.go`: flags and wiring.
 
 ## Development
 
