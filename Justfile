@@ -71,6 +71,10 @@ snapshot:
 tidy:
     go mod tidy
 
+# Record docs/demo.gif and docs/social.png with vhs.
+demo: build
+    vhs docs/demo.tape
+
 # Remove build output.
 clean:
     rm -rf dist gh-tail coverage.out coverage.html

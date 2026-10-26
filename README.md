@@ -2,14 +2,7 @@
 
 A [gh](https://cli.github.com) extension that streams activity on a GitHub repository to the terminal: tags, branches, pull requests, issues, releases and packages.
 
-```
-$ gh tail -R cli/cli
-TIME                 KIND     ACTION      ACTOR                 TEXT
-2026-10-26 04:42:35  issue    opened      wdg-bots[bot]         #14821 x
-2026-10-26 04:45:32  issue    closed      github-actions[bot]   #14821 x
-2026-10-26 05:50:39  issue    opened      henrymodisett         #14822 gh run view --job --log-failed fails on required shared-workflow metadata 404
-2026-10-26 10:47:56  pr       opened      Hrushikesh-ramilla    #14823 fix(issue create): print issue URL when post-creation mutations fail (#14367)
-```
+![gh tail streaming ghostty-org/ghostty, then browsing it interactively](docs/demo.gif)
 
 ## Install
 
