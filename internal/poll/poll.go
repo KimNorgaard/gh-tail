@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/containdk/KimNorgaard/gh-tail/internal/event"
@@ -86,24 +87,28 @@ func (p *Poller) Run(ctx context.Context, sink Sink) error {
 	}
 }
 
-// poll runs every due source, so one failing source doesn't hide the others' events.
+// poll runs every due source concurrently, so one slow or failing source doesn't hold
+// up or hide the others' events.
 func (p *Poller) poll(ctx context.Context, slots []*slot, limit int) ([]event.Event, error) {
-	var batch []event.Event
-	var errs []error
 	now := time.Now()
-	for _, s := range slots {
+	results := make([][]event.Event, len(slots))
+	errs := make([]error, len(slots))
+	var wg sync.WaitGroup
+	for i, s := range slots {
 		if s.due.After(now) {
 			continue
 		}
-		events, err := s.src.Poll(source.WithPollInterval(ctx, &s.interval))
-		s.due = now.Add(max(p.Interval, s.interval.Get()))
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		batch = append(batch, events...)
+		wg.Go(func() {
+			results[i], errs[i] = s.src.Poll(source.WithPollInterval(ctx, &s.interval))
+			s.due = now.Add(max(p.Interval, s.interval.Get()))
+		})
 	}
+	wg.Wait()
 
+	var batch []event.Event
+	for _, r := range results {
+		batch = append(batch, r...)
+	}
 	batch = slices.DeleteFunc(batch, func(e event.Event) bool { return !p.Filter.Match(e) })
 	slices.SortStableFunc(batch, func(a, b event.Event) int { return a.Time.Compare(b.Time) })
 	if limit >= 0 && len(batch) > limit {

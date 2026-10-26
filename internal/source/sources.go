@@ -1,7 +1,9 @@
 package source
 
 import (
+	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -68,28 +70,55 @@ func needsEvents(sel event.Selection) bool {
 	return false
 }
 
+// lookupConcurrency caps parallel lookups, well below GitHub's limit on concurrent
+// requests. The default backlog of 10 completes in one round.
+const lookupConcurrency = 10
+
 // backfill completes candidates with their lookups and keeps those the filter matches.
-// With n >= 0 it walks them newest first and stops at n matches, so a first poll makes
-// lookups in proportion to the backlog, not to the list. Results are oldest first.
+// With n >= 0 it walks them newest first in batches of the matches still missing, so a
+// first poll makes lookups in proportion to the backlog, not to the list. Results are
+// oldest first.
 func backfill[T any](items []T, n int, at func(T) time.Time, complete func(T) (event.Event, error), filter event.Filter) ([]event.Event, error) {
 	if n >= 0 {
 		slices.SortStableFunc(items, func(a, b T) int { return at(b).Compare(at(a)) })
 	}
 	var out []event.Event
-	for _, it := range items {
-		if n >= 0 && len(out) == n {
-			break
+	for len(items) > 0 && (n < 0 || len(out) < n) {
+		size := len(items)
+		if n >= 0 {
+			size = min(size, n-len(out))
 		}
-		e, err := complete(it)
+		events, err := completeAll(items[:size], complete)
 		if err != nil {
 			return nil, err
 		}
-		if filter.Match(e) {
-			out = append(out, e)
+		items = items[size:]
+		for _, e := range events {
+			if filter.Match(e) {
+				out = append(out, e)
+			}
 		}
 	}
 	if n >= 0 {
 		slices.Reverse(out)
 	}
 	return out, nil
+}
+
+// completeAll runs complete for every item, at most lookupConcurrency at a time, and
+// keeps the results in item order.
+func completeAll[T any](items []T, complete func(T) (event.Event, error)) ([]event.Event, error) {
+	out := make([]event.Event, len(items))
+	errs := make([]error, len(items))
+	sem := make(chan struct{}, lookupConcurrency)
+	var wg sync.WaitGroup
+	for i, it := range items {
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			out[i], errs[i] = complete(it)
+		})
+	}
+	wg.Wait()
+	return out, errors.Join(errs...)
 }
