@@ -88,13 +88,17 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	gql, err := api.NewGraphQLClient(api.ClientOptions{Host: repo.Host, Transport: transport})
+	if err != nil {
+		return err
+	}
 	filter, err := parseFilter(client, filterFlag)
 	if err != nil {
 		return err
 	}
 
 	poller := &poll.Poller{
-		Sources:   source.New(client, repo, source.Options{Selection: sel, Filter: filter, Backlog: backlog}),
+		Sources:   source.New(client, gql, repo, source.Options{Selection: sel, Filter: filter, Backlog: backlog}),
 		Filter:    filter,
 		Backlog:   backlog,
 		Interval:  interval,

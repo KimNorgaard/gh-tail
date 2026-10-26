@@ -30,8 +30,9 @@ type Options struct {
 	Backlog int
 }
 
-// New returns the sources that cover the selection.
-func New(client *api.RESTClient, repo repository.Repository, opts Options) []Source {
+// New returns the sources that cover the selection. gql lists recent tags for the
+// startup backlog.
+func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Repository, opts Options) []Source {
 	sel := opts.Selection
 	var out []Source
 	if sel[event.PR] != nil || sel[event.Issue] != nil {
@@ -45,7 +46,7 @@ func New(client *api.RESTClient, repo repository.Repository, opts Options) []Sou
 	}
 	for _, kind := range []event.Kind{event.Tag, event.Branch} {
 		if sel[kind] != nil {
-			out = append(out, NewRefs(client, repo, sel, kind))
+			out = append(out, NewRefs(client, gql, repo, sel, kind))
 		}
 	}
 	if sel[event.Package] != nil {

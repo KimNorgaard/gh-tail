@@ -90,7 +90,7 @@ A bare kind selects its default actions. `kind:action` selects one action, and `
 
 | Kind | Default actions | Other actions | Source |
 |------|-----------------|---------------|--------|
-| `tag` | `created` | `deleted` | Tag list, diffed between polls |
+| `tag` | `created` | `deleted` | Tag list, diffed between polls. The startup backlog comes from one GraphQL query |
 | `branch` | `created`, `pushed` | `deleted` | Branch list, diffed between polls |
 | `pr` | `opened`, `closed`, `merged` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled` | Issues list for the defaults. Events API for the others, plus one PR lookup per event for the title |
 | `issue` | `opened`, `closed` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled` | Issues list for the defaults. Events API for the others |
@@ -144,8 +144,9 @@ Each event is one line:
 ## Limitations
 
 - **Delay for non-default PR and issue actions.** `reopened`, `assigned`, `labeled` and the like come from the [Events API](https://docs.github.com/en/rest/activity/events), which GitHub documents as not built for real-time use, with latency from 30 seconds to 6 hours depending on the time of day. Such an event prints with the time it happened, so it can appear below newer ones. Everything else comes from list endpoints and shows up on the next poll.
-- **Tag and branch actors come from the Events API.** Refs have no actor or timestamp, so a ref change waits up to 3 polls for its Events API entry, which supplies both. If the Events API lags longer, the change prints without an actor and with the time gh-tail saw it.
-- **Tags and branches have no history.** The first poll only records the current refs, so tag and branch events appear only for changes made while gh-tail runs.
+- **Tag and branch actors come from the Events API.** Refs have no actor or timestamp, so a ref change waits up to 3 polls for its Events API entry, which supplies both. If none arrives, the change prints without an actor and with the time gh-tail saw it. Tags that GitHub Apps create, such as Renovate's, get no Events API entry in the repositories checked so far.
+- **Backlog tag times are approximate.** Git records no creation time for a tag, so the startup backlog uses the tagger date of an annotated tag and the commit date of a lightweight one.
+- **Branches have no history.** The first poll only records the current branches, so branch events appear only for changes made while gh-tail runs.
 - **Lookups.** Each new close or merge costs one request for its actor, and each PR event from the Events API one for its title. On startup, lookups stop once `-n` events pass the filter.
 - **Labels are current, not historical.** An event carries the labels the PR or issue has when gh-tail fetches it.
 - **Packages need `read:packages`.** Add the scope with `gh auth refresh -s read:packages`. Package polling costs 6 requests plus one per package linked to the repository.

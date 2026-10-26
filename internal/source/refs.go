@@ -20,9 +20,11 @@ const actorPolls = 3
 
 // Refs diffs a repository's tags or branches between polls. Refs carry no timestamp or
 // actor, so each change waits for the matching Events API entry, for at most actorPolls
-// polls. The first poll only records a baseline.
+// polls. The first poll records a baseline and, for tags, returns the newest tags as
+// backlog.
 type Refs struct {
 	client   *api.RESTClient
+	gql      *api.GraphQLClient
 	repo     repository.Repository
 	sel      event.Selection
 	kind     event.Kind
@@ -40,13 +42,14 @@ type pendingRef struct {
 	polls int
 }
 
-// NewRefs watches tags for event.Tag and branches for event.Branch.
-func NewRefs(client *api.RESTClient, repo repository.Repository, sel event.Selection, kind event.Kind) *Refs {
+// NewRefs watches tags for event.Tag and branches for event.Branch. Without gql, tags
+// have no backlog.
+func NewRefs(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Repository, sel event.Selection, kind event.Kind) *Refs {
 	prefix := "heads"
 	if kind == event.Tag {
 		prefix = "tags"
 	}
-	return &Refs{client: client, repo: repo, sel: sel, kind: kind, prefix: prefix, now: time.Now}
+	return &Refs{client: client, gql: gql, repo: repo, sel: sel, kind: kind, prefix: prefix, now: time.Now}
 }
 
 type apiRef struct {
@@ -70,9 +73,18 @@ func (s *Refs) Poll(ctx context.Context) ([]event.Event, error) {
 		cur[strings.TrimPrefix(r.Ref, "refs/"+s.prefix+"/")] = r.Object.SHA
 	}
 	now := s.now()
-	if s.prev != nil {
-		s.pending = append(s.pending, s.diff(cur, now)...)
+	if s.prev == nil {
+		var backlog []event.Event
+		if s.gql != nil && s.kind == event.Tag && s.sel.Has(event.Tag, event.Created) {
+			var err error
+			if backlog, err = s.recentTags(ctx); err != nil {
+				return nil, err
+			}
+		}
+		s.prev, s.prevPoll = cur, now
+		return backlog, nil
 	}
+	s.pending = append(s.pending, s.diff(cur, now)...)
 	s.prev, s.prevPoll = cur, now
 	if len(s.pending) == 0 {
 		return nil, nil
@@ -110,6 +122,88 @@ func (s *Refs) Poll(ctx context.Context) ([]event.Event, error) {
 		keep = append(keep, p)
 	}
 	s.pending = keep
+	return out, nil
+}
+
+// recentTagsQuery lists the newest tags. TAG_COMMIT_DATE doesn't order strictly by the
+// dates recentTags uses, so it fetches more than a backlog needs and the poller sorts.
+const recentTagsQuery = `query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    refs(refPrefix: "refs/tags/", first: 50, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+      nodes {
+        name
+        target {
+          oid
+          ... on Tag { tagger { date user { login } } }
+          ... on Commit { committedDate author { user { login } } }
+        }
+      }
+    }
+  }
+}`
+
+type gqlRecentTags struct {
+	Repository gqlRepository `json:"repository"`
+}
+
+type gqlRepository struct {
+	Refs gqlRefs `json:"refs"`
+}
+
+type gqlRefs struct {
+	Nodes []gqlRef `json:"nodes"`
+}
+
+type gqlRef struct {
+	Name   string    `json:"name"`
+	Target gqlTarget `json:"target"`
+}
+
+// gqlTarget is an annotated tag, which has a tagger, or a commit.
+type gqlTarget struct {
+	OID           string        `json:"oid"`
+	Tagger        *gqlSignature `json:"tagger"`
+	CommittedDate time.Time     `json:"committedDate"`
+	Author        *gqlSignature `json:"author"`
+}
+
+type gqlSignature struct {
+	Date time.Time `json:"date"`
+	User *apiUser  `json:"user"`
+}
+
+// recentTags returns created events for the newest tags. Refs record no creation time, so
+// an annotated tag uses its tagger date and a lightweight tag its commit date.
+func (s *Refs) recentTags(ctx context.Context) ([]event.Event, error) {
+	var resp gqlRecentTags
+	vars := map[string]any{"owner": s.repo.Owner, "name": s.repo.Name}
+	if err := s.gql.DoWithContext(ctx, recentTagsQuery, vars, &resp); err != nil {
+		return nil, fmt.Errorf("list recent tags: %w", err)
+	}
+
+	out := make([]event.Event, 0, len(resp.Repository.Refs.Nodes))
+	for _, r := range resp.Repository.Refs.Nodes {
+		t := r.Target
+		sig := t.Author
+		at := t.CommittedDate
+		if t.Tagger != nil {
+			sig, at = t.Tagger, t.Tagger.Date
+		}
+		e := event.Event{
+			ID:     fmt.Sprintf("%s:%s:%s:%s", event.Tag, r.Name, event.Created, t.OID),
+			Time:   at,
+			Repo:   s.repo.Owner + "/" + s.repo.Name,
+			Kind:   event.Tag,
+			Action: event.Created,
+			Ref:    r.Name,
+			Text:   r.Name,
+			URL:    s.refURL(event.Created, r.Name),
+		}
+		if sig != nil && sig.User != nil {
+			e.Actor = sig.User.Login
+		}
+		out = append(out, e)
+	}
 	return out, nil
 }
 
