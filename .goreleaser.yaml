@@ -1,0 +1,49 @@
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+
+archives:
+  - id: brew
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  # gh extension install picks the release asset named <name>-<os>-<arch>.
+  - id: gh-extension
+    formats: [binary]
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+# GoReleaser publishes casks, the replacement for its deprecated formulas.
+homebrew_casks:
+  - name: gh-tail
+    ids: [brew]
+    description: Event tailer for GitHub repositories
+    homepage: https://github.com/KimNorgaard/gh-tail
+    # This repository is its own tap. Casks/ holds the cask.
+    repository:
+      owner: KimNorgaard
+      name: gh-tail
+      token: "{{ .Env.GITHUB_TOKEN }}"
+      # main only accepts pull requests, so the cask lands on its own branch.
+      branch: "cask/gh-tail-{{ .Version }}"
+      pull_request:
+        enabled: true
+        base:
+          branch: main
+    # The binary isn't signed, and Gatekeeper blocks quarantined unsigned
+    # binaries. Homebrew deprecates postflight blocks, which hooks produce,
+    # in favor of declarative steps.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{" }}staged_path{{ "}}" }}/gh-tail"]
+        end
+      end
