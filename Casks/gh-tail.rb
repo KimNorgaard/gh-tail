@@ -6,25 +6,25 @@ cask "gh-tail" do
     end
   end
 
-  version "0.2.0"
+  version "0.2.1"
 
   on_macos do
     on_arm do
-      sha256 "8adec07163eb38aa6762f8f05037d54d21f0c4f52d01b87820f36aa684014e6b"
+      sha256 "d72acdbfd60e91687aa65a575dcf91ae5b7d1b300811376662d4081b8fd7ddff"
       url "https://github.com/KimNorgaard/gh-tail/releases/download/v#{version}/gh-tail_darwin_arm64.tar.gz"
     end
     on_intel do
-      sha256 "9f53adb83609f5cc824f653a02b687a2419a5fc71af5ee2e658c4ffa37ea3150"
+      sha256 "01488331cf8b2602264a970760749047f3fe7955e2a4627b9672199938d4dd7a"
       url "https://github.com/KimNorgaard/gh-tail/releases/download/v#{version}/gh-tail_darwin_amd64.tar.gz"
     end
   end
   on_linux do
     on_arm do
-      sha256 "bd5c6b80b2a27f22b367b7e46cfba6a2553adc614f0b853254f5cf4af769eb6e"
+      sha256 "cebeec3dd2e3b9f7fd55035d2e33cc271373c309ad0bd115caa59762c83618d0"
       url "https://github.com/KimNorgaard/gh-tail/releases/download/v#{version}/gh-tail_linux_arm64.tar.gz"
     end
     on_intel do
-      sha256 "aa5e6f995c6e4e75c533e88a73919203036316673807774a4e03329921129b37"
+      sha256 "5fe98b04ca5e70ae6af0dfa2a7d9dd374b2bf8d862af12ee2a2f51bc27ec8a01"
       url "https://github.com/KimNorgaard/gh-tail/releases/download/v#{version}/gh-tail_linux_amd64.tar.gz"
     end
   end
