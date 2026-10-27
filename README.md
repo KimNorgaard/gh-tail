@@ -62,7 +62,7 @@ Details are fetched when opened:
 
 - **PR or issue:** state, author, labels, branches and size, and the rendered body
 - **Release:** the release notes
-- **Tag:** the commits since the previous semver tag
+- **Tag:** the commits since the previous version with the same prefix, so `components/v1.3.0` follows `components/v1.2.9`
 
 ### Flags
 

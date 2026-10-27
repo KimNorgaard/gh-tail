@@ -216,20 +216,34 @@ func (f *Fetcher) tag(ctx context.Context, tag string) (string, error) {
 	return b.String(), nil
 }
 
-// previousTag returns the highest semver tag in refs below tag, or "" if tag isn't
-// semver or has no predecessor.
+// previousTag returns the highest tag in refs below tag with the same prefix, or "" if
+// tag isn't a version or has no predecessor. Tags are compared as semver, so
+// "components/v1.10.0" follows "components/v1.9.0" and "other/v2.0.0" doesn't count.
 func previousTag(tag string, refs []apiRef) string {
-	if !semver.IsValid(tag) {
+	prefix, version, ok := splitVersion(tag)
+	if !ok {
 		return ""
 	}
-	prev := ""
+	prev, prevVersion := "", ""
 	for _, r := range refs {
 		name := strings.TrimPrefix(r.Ref, "refs/tags/")
-		if semver.IsValid(name) && semver.Compare(name, tag) < 0 && (prev == "" || semver.Compare(name, prev) > 0) {
-			prev = name
+		p, v, ok := splitVersion(name)
+		if ok && p == prefix && semver.Compare(v, version) < 0 && (prev == "" || semver.Compare(v, prevVersion) > 0) {
+			prev, prevVersion = name, v
 		}
 	}
 	return prev
+}
+
+// splitVersion splits a tag such as "components/v1.2.3" into its prefix and a semver
+// version, adding the "v" that the semver package requires when the tag omits it.
+func splitVersion(tag string) (prefix, version string, ok bool) {
+	i := strings.LastIndex(tag, "/") + 1
+	prefix, version = tag[:i], tag[i:]
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return prefix, version, semver.IsValid(version)
 }
 
 func (f *Fetcher) get(ctx context.Context, path string, v any) error {
