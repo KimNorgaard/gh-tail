@@ -33,6 +33,8 @@ func New(client *api.RESTClient, repo repository.Repository) *Fetcher {
 // Markdown returns the details of e. Kinds without details return a short note.
 func (f *Fetcher) Markdown(ctx context.Context, e event.Event) (string, error) {
 	switch e.Kind {
+	case event.Deployment:
+		return fmt.Sprintf("# Deployment %d\n\n**%s** · %s\n\nRef: `%s`\n\nSHA: `%s`\n\n%s\n\n[Open deployment](%s)\n", e.DeploymentID, e.Action, e.Environment, e.Ref, e.SHA, e.Text, e.URL), nil
 	case event.PR:
 		return f.pr(ctx, e.Number)
 	case event.Issue:
