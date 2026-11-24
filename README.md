@@ -34,6 +34,7 @@ gh tail -R ghe.example.com/owner/repo    # GitHub Enterprise Server
 gh tail --kinds tag,release,package      # choose kinds
 gh tail --kinds pr:merged,issue:opened   # choose actions per kind
 gh tail --kinds 'pr:*'                   # every PR action
+gh tail --kinds pr:commented,pr:approved,pr:changes_requested  # PR discussion and reviews
 gh tail --filter '-actor:*[bot]'         # hide bots
 gh tail --filter 'author:@me label:bug'  # your PRs and issues labeled bug
 gh tail --json | jq 'select(.kind == "tag")'
@@ -85,12 +86,12 @@ A bare kind selects its default actions. `kind:action` selects one action, and `
 |------|-----------------|---------------|--------|
 | `tag` | `created` | `deleted` | Tag list, diffed between polls. The startup backlog comes from one GraphQL query |
 | `branch` | `created`, `pushed` | `deleted` | Branch list, diffed between polls |
-| `pr` | `opened`, `closed`, `merged` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled` | Issues list for the defaults. Events API for the others, plus one PR lookup per event for the title |
-| `issue` | `opened`, `closed` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled` | Issues list for the defaults. Events API for the others |
+| `pr` | `opened`, `closed`, `merged` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `commented`, `approved`, `changes_requested`, `reviewed` | Issues list for the defaults. Comment lists for `commented`. PR list and per-PR reviews for `approved`, `changes_requested` and `reviewed`. Events API for the others, plus one PR lookup per event for the title |
+| `issue` | `opened`, `closed` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `commented` | Issues list for the defaults. Comment list for `commented`. Events API for the others |
 | `release` | `published` | | Release list |
 | `package` | `published` | | Packages API |
 
-`closed` means closed without merging. For `labeled`, `unlabeled`, `assigned` and `unassigned`, the text ends with the label or `@assignee` in parentheses.
+`closed` means closed without merging. `commented` covers conversation comments and, for PRs, inline review comments, whose text names the file and line. `reviewed` is a review submitted as a comment rather than an approval or change request. Comment and review text ends with the body, flattened to one line and cut at 200 characters. For `labeled`, `unlabeled`, `assigned` and `unassigned`, the text ends with the label or `@assignee` in parentheses.
 
 ### Filters
 
@@ -144,6 +145,7 @@ Each event is one line:
 - **Labels are current, not historical.** An event carries the labels the PR or issue has when gh-tail fetches it.
 - **Packages need `read:packages`.** Add the scope with `gh auth refresh -s read:packages`. Package polling costs 6 requests plus one per package linked to the repository.
 - **Container noise is filtered.** Untagged versions and versions tagged only `sha256-<digest>` (signatures, attestations, per-platform manifests) are skipped.
+- **Comments and reviews.** Comments cost 2 requests per poll: the repository's 100 most recently updated conversation comments and inline review comments. Reviews cost 1 request for the 30 most recently updated PRs plus 1 for each of those updated since the last poll. On startup, reviews are read for the `-n` most recently updated PRs. A PR with more than 100 reviews only shows its first 100. Comment events carry no `author`, so `author:` terms don't match them. Dismissed and pending reviews aren't reported. The `*` action includes all of these.
 - **No resume.** A restart shows the last `-n` events again.
 - **Busy repositories.** One poll reads the 100 most recently updated issues and PRs and the latest 100 events. Changes beyond that between two polls are missed, as are list items that become visible more than 10 minutes after the newest one seen.
 

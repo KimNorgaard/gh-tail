@@ -39,6 +39,11 @@ var (
 		event.Closed:    lipgloss.Red,
 		event.Deleted:   lipgloss.Red,
 		event.Pushed:    lipgloss.Blue,
+		event.Commented: lipgloss.Yellow,
+		event.Approved:  lipgloss.Green,
+		event.Reviewed:  lipgloss.Blue,
+
+		event.ChangesRequested: lipgloss.Red,
 	}
 
 	faint  = lipgloss.NewStyle().Faint(true)

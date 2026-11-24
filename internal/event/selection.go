@@ -20,14 +20,19 @@ const (
 	Labeled    = "labeled"
 	Unlabeled  = "unlabeled"
 	Published  = "published"
+	Commented  = "commented"
+	Approved   = "approved"
+	Reviewed   = "reviewed"
+
+	ChangesRequested = "changes_requested"
 )
 
 // Actions lists the actions each kind's source emits, as observed from the API.
 var Actions = map[Kind][]string{
 	Tag:     {Created, Deleted},
 	Branch:  {Created, Deleted, Pushed},
-	PR:      {Opened, Closed, Merged, Reopened, Assigned, Unassigned, Labeled, Unlabeled},
-	Issue:   {Opened, Closed, Reopened, Assigned, Unassigned, Labeled, Unlabeled},
+	PR:      {Opened, Closed, Merged, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented, Approved, ChangesRequested, Reviewed},
+	Issue:   {Opened, Closed, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented},
 	Release: {Published},
 	Package: {Published},
 }
