@@ -20,11 +20,6 @@ const (
 var Kinds = []Kind{Tag, Branch, PR, Issue, Release, Package, Deployment}
 
 type Event struct {
-	DeploymentID   int64     `json:"deployment_id,omitempty"`
-	Environment    string    `json:"environment,omitempty"`
-	SHA            string    `json:"sha,omitempty"`
-	LogURL         string    `json:"log_url,omitempty"`
-	EnvironmentURL string    `json:"environment_url,omitempty"`
 	ID             string    `json:"id"`
 	Time           time.Time `json:"time"`
 	Repo           string    `json:"repo"`
@@ -37,4 +32,9 @@ type Event struct {
 	Labels         []string  `json:"labels,omitempty"`
 	Text           string    `json:"text"`
 	URL            string    `json:"url,omitempty"`
+	DeploymentID   int64     `json:"deployment_id,omitempty"`
+	Environment    string    `json:"environment,omitempty"`
+	SHA            string    `json:"sha,omitempty"`
+	LogURL         string    `json:"log_url,omitempty"`
+	EnvironmentURL string    `json:"environment_url,omitempty"`
 }
