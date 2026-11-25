@@ -32,6 +32,14 @@ const (
 	Failure          = "failure"
 	Error            = "error"
 	Inactive         = "inactive"
+	Cancelled        = "cancelled"
+	TimedOut         = "timed_out"
+	ActionRequired   = "action_required"
+	Skipped          = "skipped"
+	Neutral          = "neutral"
+	Stale            = "stale"
+	StartupFailure   = "startup_failure"
+	Expected         = "expected"
 )
 
 // Actions lists the actions each kind's source emits, as observed from the API.
@@ -43,6 +51,7 @@ var Actions = map[Kind][]string{
 	Release:    {Published},
 	Package:    {Published},
 	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
+	Check:      {Success, Failure, Error, Cancelled, TimedOut, ActionRequired, StartupFailure, Pending, Expected, Skipped, Neutral, Stale},
 }
 
 // DefaultActions are the actions a bare kind selects.
@@ -54,6 +63,7 @@ var DefaultActions = map[Kind][]string{
 	Release:    {Published},
 	Package:    {Published},
 	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
+	Check:      {Success, Failure, Error, Cancelled, TimedOut, ActionRequired, StartupFailure},
 }
 
 // Selection holds the actions to show per kind. The action "*" selects every action,

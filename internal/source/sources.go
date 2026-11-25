@@ -37,7 +37,7 @@ type Options struct {
 	Backlog int
 }
 
-// New returns the sources that cover the selection. gql lists recent tags for the
+// New returns the sources that cover the selection. gql reads checks and lists recent tags for the
 // startup backlog.
 func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Repository, opts Options) []Source {
 	sel := opts.Selection
@@ -67,6 +67,9 @@ func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Reposit
 	}
 	if sel[event.Deployment] != nil {
 		out = append(out, NewDeployments(client, repo, sel))
+	}
+	if sel[event.Check] != nil && gql != nil {
+		out = append(out, NewChecks(gql, repo, sel))
 	}
 	return out
 }

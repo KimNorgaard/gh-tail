@@ -14,10 +14,11 @@ const (
 	Release    Kind = "release"
 	Package    Kind = "package"
 	Deployment Kind = "deployment"
+	Check      Kind = "check"
 )
 
 // Kinds lists every supported kind.
-var Kinds = []Kind{Tag, Branch, PR, Issue, Release, Package, Deployment}
+var Kinds = []Kind{Tag, Branch, PR, Issue, Release, Package, Deployment, Check}
 
 type Event struct {
 	ID             string    `json:"id"`
