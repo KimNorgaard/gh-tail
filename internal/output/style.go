@@ -51,7 +51,7 @@ var (
 		event.Pending:          lipgloss.Yellow,
 		event.Queued:           lipgloss.Yellow,
 		event.InProgress:       lipgloss.Blue,
-		event.Cancelled:        lipgloss.Red,
+		event.Canceled:         lipgloss.Red,
 		event.TimedOut:         lipgloss.Red,
 		event.StartupFailure:   lipgloss.Red,
 		event.ActionRequired:   lipgloss.Yellow,

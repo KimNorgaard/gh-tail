@@ -32,7 +32,7 @@ const (
 	Failure          = "failure"
 	Error            = "error"
 	Inactive         = "inactive"
-	Cancelled        = "cancelled"
+	Canceled         = "cancelled" //nolint:misspell // GitHub's spelling of the conclusion
 	TimedOut         = "timed_out"
 	ActionRequired   = "action_required"
 	Skipped          = "skipped"
@@ -51,7 +51,7 @@ var Actions = map[Kind][]string{
 	Release:    {Published},
 	Package:    {Published},
 	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
-	Check:      {Success, Failure, Error, Cancelled, TimedOut, ActionRequired, StartupFailure, Pending, Expected, Skipped, Neutral, Stale},
+	Check:      {Success, Failure, Error, Canceled, TimedOut, ActionRequired, StartupFailure, Pending, Expected, Skipped, Neutral, Stale},
 }
 
 // DefaultActions are the actions a bare kind selects.
@@ -63,7 +63,7 @@ var DefaultActions = map[Kind][]string{
 	Release:    {Published},
 	Package:    {Published},
 	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
-	Check:      {Success, Failure, Error, Cancelled, TimedOut, ActionRequired, StartupFailure},
+	Check:      {Success, Failure, Error, Canceled, TimedOut, ActionRequired, StartupFailure},
 }
 
 // Selection holds the actions to show per kind. The action "*" selects every action,

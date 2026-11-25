@@ -50,55 +50,62 @@ fragment checks on Commit {
 }`
 
 type gqlChecks struct {
-	Repository struct {
-		DefaultBranchRef *struct {
-			Name   string         `json:"name"`
-			Target gqlCheckCommit `json:"target"`
-		} `json:"defaultBranchRef"`
-		PullRequests struct {
-			Nodes []struct {
-				Number  int     `json:"number"`
-				Title   string  `json:"title"`
-				Author  apiUser `json:"author"`
-				Commits struct {
-					Nodes []struct {
-						Commit gqlCheckCommit `json:"commit"`
-					} `json:"nodes"`
-				} `json:"commits"`
-			} `json:"nodes"`
-		} `json:"pullRequests"`
-	} `json:"repository"`
+	Repository gqlChecksRepository `json:"repository"`
+}
+
+type gqlChecksRepository struct {
+	DefaultBranchRef *gqlCheckBranch `json:"defaultBranchRef"`
+	PullRequests     gqlCheckPRs     `json:"pullRequests"`
+}
+
+type gqlCheckBranch struct {
+	Name   string         `json:"name"`
+	Target gqlCheckCommit `json:"target"`
+}
+
+type gqlCheckPRs struct {
+	Nodes []gqlCheckPR `json:"nodes"`
+}
+
+type gqlCheckPR struct {
+	Number  int              `json:"number"`
+	Title   string           `json:"title"`
+	Author  apiUser          `json:"author"`
+	Commits gqlCheckPRCommit `json:"commits"`
+}
+
+type gqlCheckPRCommit struct {
+	Nodes []gqlCheckPRCommitNode `json:"nodes"`
+}
+
+type gqlCheckPRCommitNode struct {
+	Commit gqlCheckCommit `json:"commit"`
 }
 
 type gqlCheckCommit struct {
-	OID               string `json:"oid"`
-	StatusCheckRollup *struct {
-		Contexts struct {
-			Nodes []gqlCheckContext `json:"nodes"`
-		} `json:"contexts"`
-	} `json:"statusCheckRollup"`
+	OID               string          `json:"oid"`
+	StatusCheckRollup *gqlCheckRollup `json:"statusCheckRollup"`
+}
+
+type gqlCheckRollup struct {
+	Contexts gqlCheckContexts `json:"contexts"`
+}
+
+type gqlCheckContexts struct {
+	Nodes []gqlCheckContext `json:"nodes"`
 }
 
 // gqlCheckContext is a check run or a commit status, told apart by Typename.
 type gqlCheckContext struct {
 	Typename string `json:"__typename"`
 
-	DatabaseID  int64     `json:"databaseId"`
-	Name        string    `json:"name"`
-	Status      string    `json:"status"`
-	Conclusion  string    `json:"conclusion"`
-	CompletedAt time.Time `json:"completedAt"`
-	DetailsURL  string    `json:"detailsUrl"`
-	CheckSuite  struct {
-		App struct {
-			Slug string `json:"slug"`
-		} `json:"app"`
-		WorkflowRun *struct {
-			Workflow struct {
-				Name string `json:"name"`
-			} `json:"workflow"`
-		} `json:"workflowRun"`
-	} `json:"checkSuite"`
+	DatabaseID  int64         `json:"databaseId"`
+	Name        string        `json:"name"`
+	Status      string        `json:"status"`
+	Conclusion  string        `json:"conclusion"`
+	CompletedAt time.Time     `json:"completedAt"`
+	DetailsURL  string        `json:"detailsUrl"`
+	CheckSuite  gqlCheckSuite `json:"checkSuite"`
 
 	ID          string    `json:"id"`
 	Context     string    `json:"context"`
@@ -107,6 +114,23 @@ type gqlCheckContext struct {
 	TargetURL   string    `json:"targetUrl"`
 	Description string    `json:"description"`
 	Creator     apiUser   `json:"creator"`
+}
+
+type gqlCheckSuite struct {
+	App         gqlCheckApp          `json:"app"`
+	WorkflowRun *gqlCheckWorkflowRun `json:"workflowRun"`
+}
+
+type gqlCheckApp struct {
+	Slug string `json:"slug"`
+}
+
+type gqlCheckWorkflowRun struct {
+	Workflow gqlCheckWorkflow `json:"workflow"`
+}
+
+type gqlCheckWorkflow struct {
+	Name string `json:"name"`
 }
 
 func (s *Checks) Poll(ctx context.Context) ([]event.Event, error) {
