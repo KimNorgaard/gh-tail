@@ -33,6 +33,7 @@ var (
 		event.Deployment: lipgloss.Cyan,
 	}
 	actionColors = map[string]color.Color{
+    event.ChangesRequested: lipgloss.Red,
 		event.Opened:     lipgloss.Green,
 		event.Created:    lipgloss.Green,
 		event.Published:  lipgloss.Green,
@@ -40,6 +41,9 @@ var (
 		event.Closed:     lipgloss.Red,
 		event.Deleted:    lipgloss.Red,
 		event.Pushed:     lipgloss.Blue,
+		event.Commented:  lipgloss.Yellow,
+		event.Approved:   lipgloss.Green,
+		event.Reviewed:   lipgloss.Blue,
 		event.Success:    lipgloss.Green,
 		event.Failure:    lipgloss.Red,
 		event.Error:      lipgloss.Red,

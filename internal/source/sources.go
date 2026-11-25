@@ -19,8 +19,13 @@ var lifecycle = map[event.Kind][]string{
 	event.Issue: {event.Opened, event.Closed},
 }
 
+// reviewSelection holds the PR actions that Reviews reports.
+var reviewSelection = []string{event.Approved, event.ChangesRequested, event.Reviewed}
+
+// listed reports whether a source other than RepoEvents covers the action.
 func listed(kind event.Kind, action string) bool {
-	return slices.Contains(lifecycle[kind], action)
+	return slices.Contains(lifecycle[kind], action) || action == event.Commented ||
+		(kind == event.PR && slices.Contains(reviewSelection, action))
 }
 
 // Options configures the sources.
@@ -37,8 +42,14 @@ type Options struct {
 func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Repository, opts Options) []Source {
 	sel := opts.Selection
 	var out []Source
-	if sel[event.PR] != nil || sel[event.Issue] != nil {
+	if needsIssues(sel) {
 		out = append(out, NewIssues(client, repo, opts))
+	}
+	if sel.Has(event.PR, event.Commented) || sel.Has(event.Issue, event.Commented) {
+		out = append(out, NewComments(client, repo, sel))
+	}
+	if slices.ContainsFunc(reviewSelection, func(a string) bool { return sel.Has(event.PR, a) }) {
+		out = append(out, NewReviews(client, repo, opts))
 	}
 	if needsEvents(sel) {
 		out = append(out, NewRepoEvents(client, repo, opts))
@@ -58,6 +69,16 @@ func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Reposit
 		out = append(out, NewDeployments(client, repo, sel))
 	}
 	return out
+}
+
+// needsIssues reports whether the selection has a PR or issue action from lifecycle.
+func needsIssues(sel event.Selection) bool {
+	for kind, actions := range lifecycle {
+		if slices.ContainsFunc(actions, func(a string) bool { return sel.Has(kind, a) }) {
+			return true
+		}
+	}
+	return false
 }
 
 // needsEvents reports whether the selection has a PR or issue action outside lifecycle.
