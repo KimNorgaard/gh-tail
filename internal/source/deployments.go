@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -60,7 +62,7 @@ func (s *Deployments) Poll(ctx context.Context) ([]event.Event, error) {
 	batches, err := completeAll(deployments, func(d apiDeployment) ([]event.Event, error) {
 		base := event.Event{ID: "deployment:" + strconv.FormatInt(d.ID, 10), Time: d.CreatedAt, Repo: s.repo.Owner + "/" + s.repo.Name, Kind: event.Deployment, Action: event.Created, Actor: d.Creator.Login, Author: d.Creator.Login, Ref: d.Ref, DeploymentID: d.ID, Environment: d.Environment, SHA: d.SHA}
 		base.URL = fmt.Sprintf("https://%s/%s/%s/deployments", s.repo.Host, s.repo.Owner, s.repo.Name)
-		base.Text = deploymentText(d.ID, d.Environment, d.Ref, d.Description)
+		base.Text = deploymentText(d.Environment, d.Ref, d.Description)
 		var out []event.Event
 		if s.selection.Has(event.Deployment, event.Created) {
 			out = append(out, base)
@@ -79,8 +81,16 @@ func (s *Deployments) Poll(ctx context.Context) ([]event.Event, error) {
 		if err := s.client.DoWithContext(ctx, http.MethodGet, path, nil, &statuses); err != nil {
 			return nil, fmt.Errorf("list deployment %d statuses: %w", d.ID, err)
 		}
-		for _, st := range statuses {
-			if !s.selection.Has(event.Deployment, st.State) {
+		// The list is newest first. Walk it oldest first and skip a status that repeats
+		// the previous one's state and description: some CI systems post each state
+		// twice.
+		slices.Reverse(statuses)
+		var prev *apiDeploymentStatus
+		for i := range statuses {
+			st := statuses[i]
+			repeat := prev != nil && prev.State == st.State && prev.Description == st.Description
+			prev = &statuses[i]
+			if repeat || !s.selection.Has(event.Deployment, st.State) {
 				continue
 			}
 			e := base
@@ -101,7 +111,7 @@ func (s *Deployments) Poll(ctx context.Context) ([]event.Event, error) {
 			} else if e.EnvironmentURL != "" {
 				e.URL = e.EnvironmentURL
 			}
-			e.Text = deploymentText(d.ID, e.Environment, d.Ref, st.Description)
+			e.Text = deploymentText(e.Environment, d.Ref, st.Description)
 			out = append(out, e)
 		}
 		return out, nil
@@ -121,10 +131,18 @@ func (s *Deployments) Poll(ctx context.Context) ([]event.Event, error) {
 	return out, nil
 }
 
-func deploymentText(id int64, environment, ref, description string) string {
-	text := fmt.Sprintf("deployment %d %s (%s)", id, environment, ref)
+// shaRef matches a ref that is a full commit SHA.
+var shaRef = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// deploymentText is "environment ref: description", with a SHA ref shortened. The
+// deployment ID is in the JSON output.
+func deploymentText(environment, ref, description string) string {
+	if shaRef.MatchString(ref) {
+		ref = short(ref)
+	}
+	text := environment + " " + ref
 	if description != "" {
-		text += " " + description
+		text += ": " + description
 	}
 	return text
 }
