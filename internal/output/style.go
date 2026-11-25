@@ -31,6 +31,7 @@ var (
 		event.Release:    lipgloss.Cyan,
 		event.Package:    lipgloss.BrightBlue,
 		event.Deployment: lipgloss.Cyan,
+		event.Check:      lipgloss.BrightBlack,
 	}
 	actionColors = map[string]color.Color{
 		event.ChangesRequested: lipgloss.Red,
@@ -50,6 +51,10 @@ var (
 		event.Pending:          lipgloss.Yellow,
 		event.Queued:           lipgloss.Yellow,
 		event.InProgress:       lipgloss.Blue,
+		event.Canceled:         lipgloss.Red,
+		event.TimedOut:         lipgloss.Red,
+		event.StartupFailure:   lipgloss.Red,
+		event.ActionRequired:   lipgloss.Yellow,
 	}
 
 	faint  = lipgloss.NewStyle().Faint(true)
