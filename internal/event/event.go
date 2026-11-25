@@ -7,28 +7,34 @@ import "time"
 type Kind string
 
 const (
-	Tag     Kind = "tag"
-	Branch  Kind = "branch"
-	PR      Kind = "pr"
-	Issue   Kind = "issue"
-	Release Kind = "release"
-	Package Kind = "package"
+	Tag        Kind = "tag"
+	Branch     Kind = "branch"
+	PR         Kind = "pr"
+	Issue      Kind = "issue"
+	Release    Kind = "release"
+	Package    Kind = "package"
+	Deployment Kind = "deployment"
 )
 
 // Kinds lists every supported kind.
-var Kinds = []Kind{Tag, Branch, PR, Issue, Release, Package}
+var Kinds = []Kind{Tag, Branch, PR, Issue, Release, Package, Deployment}
 
 type Event struct {
-	ID     string    `json:"id"`
-	Time   time.Time `json:"time"`
-	Repo   string    `json:"repo"`
-	Kind   Kind      `json:"kind"`
-	Action string    `json:"action"`
-	Number int       `json:"number,omitempty"`
-	Ref    string    `json:"ref,omitempty"`
-	Actor  string    `json:"actor,omitempty"`
-	Author string    `json:"author,omitempty"`
-	Labels []string  `json:"labels,omitempty"`
-	Text   string    `json:"text"`
-	URL    string    `json:"url,omitempty"`
+	ID             string    `json:"id"`
+	Time           time.Time `json:"time"`
+	Repo           string    `json:"repo"`
+	Kind           Kind      `json:"kind"`
+	Action         string    `json:"action"`
+	Number         int       `json:"number,omitempty"`
+	Ref            string    `json:"ref,omitempty"`
+	Actor          string    `json:"actor,omitempty"`
+	Author         string    `json:"author,omitempty"`
+	Labels         []string  `json:"labels,omitempty"`
+	Text           string    `json:"text"`
+	URL            string    `json:"url,omitempty"`
+	DeploymentID   int64     `json:"deployment_id,omitempty"`
+	Environment    string    `json:"environment,omitempty"`
+	SHA            string    `json:"sha,omitempty"`
+	LogURL         string    `json:"log_url,omitempty"`
+	EnvironmentURL string    `json:"environment_url,omitempty"`
 }

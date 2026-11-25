@@ -54,6 +54,9 @@ func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Reposit
 	if sel[event.Package] != nil {
 		out = append(out, NewPackages(client, repo))
 	}
+	if sel[event.Deployment] != nil {
+		out = append(out, NewDeployments(client, repo, sel))
+	}
 	return out
 }
 
@@ -107,8 +110,8 @@ func backfill[T any](items []T, n int, at func(T) time.Time, complete func(T) (e
 
 // completeAll runs complete for every item, at most lookupConcurrency at a time, and
 // keeps the results in item order.
-func completeAll[T any](items []T, complete func(T) (event.Event, error)) ([]event.Event, error) {
-	out := make([]event.Event, len(items))
+func completeAll[T, R any](items []T, complete func(T) (R, error)) ([]R, error) {
+	out := make([]R, len(items))
 	errs := make([]error, len(items))
 	sem := make(chan struct{}, lookupConcurrency)
 	var wg sync.WaitGroup

@@ -15,8 +15,8 @@ import (
 // Column widths of a row. The text column takes the rest.
 const (
 	timeWidth   = 19
-	kindWidth   = 7
-	actionWidth = 10
+	kindWidth   = 10
+	actionWidth = 11
 	actorWidth  = 20
 	gap         = "  "
 )
@@ -24,21 +24,28 @@ const (
 // Colors are basic ANSI colors, so they follow the terminal's theme.
 var (
 	kindColors = map[event.Kind]color.Color{
-		event.Tag:     lipgloss.Magenta,
-		event.Branch:  lipgloss.Blue,
-		event.PR:      lipgloss.Green,
-		event.Issue:   lipgloss.Yellow,
-		event.Release: lipgloss.Cyan,
-		event.Package: lipgloss.BrightBlue,
+		event.Tag:        lipgloss.Magenta,
+		event.Branch:     lipgloss.Blue,
+		event.PR:         lipgloss.Green,
+		event.Issue:      lipgloss.Yellow,
+		event.Release:    lipgloss.Cyan,
+		event.Package:    lipgloss.BrightBlue,
+		event.Deployment: lipgloss.Cyan,
 	}
 	actionColors = map[string]color.Color{
-		event.Opened:    lipgloss.Green,
-		event.Created:   lipgloss.Green,
-		event.Published: lipgloss.Green,
-		event.Merged:    lipgloss.Magenta,
-		event.Closed:    lipgloss.Red,
-		event.Deleted:   lipgloss.Red,
-		event.Pushed:    lipgloss.Blue,
+		event.Opened:     lipgloss.Green,
+		event.Created:    lipgloss.Green,
+		event.Published:  lipgloss.Green,
+		event.Merged:     lipgloss.Magenta,
+		event.Closed:     lipgloss.Red,
+		event.Deleted:    lipgloss.Red,
+		event.Pushed:     lipgloss.Blue,
+		event.Success:    lipgloss.Green,
+		event.Failure:    lipgloss.Red,
+		event.Error:      lipgloss.Red,
+		event.Pending:    lipgloss.Yellow,
+		event.Queued:     lipgloss.Yellow,
+		event.InProgress: lipgloss.Blue,
 	}
 
 	faint  = lipgloss.NewStyle().Faint(true)
