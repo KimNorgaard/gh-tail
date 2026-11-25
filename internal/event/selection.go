@@ -25,23 +25,23 @@ const (
 	Reviewed   = "reviewed"
 
 	ChangesRequested = "changes_requested"
-	Queued     = "queued"
-	InProgress = "in_progress"
-	Pending    = "pending"
-	Success    = "success"
-	Failure    = "failure"
-	Error      = "error"
-	Inactive   = "inactive"
+	Queued           = "queued"
+	InProgress       = "in_progress"
+	Pending          = "pending"
+	Success          = "success"
+	Failure          = "failure"
+	Error            = "error"
+	Inactive         = "inactive"
 )
 
 // Actions lists the actions each kind's source emits, as observed from the API.
 var Actions = map[Kind][]string{
-	Tag:     {Created, Deleted},
-	Branch:  {Created, Deleted, Pushed},
-	PR:      {Opened, Closed, Merged, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented, Approved, ChangesRequested, Reviewed},
-	Issue:   {Opened, Closed, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented},
-	Release: {Published},
-	Package: {Published},
+	Tag:        {Created, Deleted},
+	Branch:     {Created, Deleted, Pushed},
+	PR:         {Opened, Closed, Merged, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented, Approved, ChangesRequested, Reviewed},
+	Issue:      {Opened, Closed, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented},
+	Release:    {Published},
+	Package:    {Published},
 	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
 }
 
