@@ -1,6 +1,6 @@
 # gh-tail
 
-A [gh](https://cli.github.com) extension that streams activity on a GitHub repository to the terminal: tags, branches, pull requests, issues, releases and packages.
+A [gh](https://cli.github.com) extension that streams activity on a GitHub repository to the terminal: tags, branches, pull requests, issues, releases, packages and deployments.
 
 ![gh tail streaming ghostty-org/ghostty, then browsing it interactively](docs/demo.gif)
 
@@ -33,6 +33,8 @@ gh tail -R owner/repo                    # another repository
 gh tail -R ghe.example.com/owner/repo    # GitHub Enterprise Server
 gh tail --kinds tag,release,package      # choose kinds
 gh tail --kinds pr:merged,issue:opened   # choose actions per kind
+gh tail --kinds deployment                # deployment creation and status history
+gh tail --kinds deployment:failure        # failed deployments only
 gh tail --kinds 'pr:*'                   # every PR action
 gh tail --kinds pr:commented,pr:approved,pr:changes_requested  # PR discussion and reviews
 gh tail --filter '-actor:*[bot]'         # hide bots
@@ -90,6 +92,7 @@ A bare kind selects its default actions. `kind:action` selects one action, and `
 | `issue` | `opened`, `closed` | `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `commented` | Issues list for the defaults. Comment list for `commented`. Events API for the others |
 | `release` | `published` | | Release list |
 | `package` | `published` | | Packages API |
+| `deployment` | `created`, `queued`, `in_progress`, `pending`, `success`, `failure`, `error`, `inactive` | | Deployments list and status history |
 
 `closed` means closed without merging. `commented` covers conversation comments and, for PRs, inline review comments, whose text names the file and line. `reviewed` is a review submitted as a comment rather than an approval or change request. Comment and review text ends with the body, flattened to one line and cut at 200 characters. For `labeled`, `unlabeled`, `assigned` and `unassigned`, the text ends with the label or `@assignee` in parentheses.
 
@@ -127,7 +130,9 @@ Each event is one line:
 | `repo` | `owner/repo` |
 | `kind` | One of the kinds above |
 | `number` | PR or issue number, for `pr` and `issue` |
-| `ref` | Tag or branch name, for `tag`, `branch` and `release` |
+| `ref` | Tag or branch name, for `tag`, `branch`, `release` and `deployment` |
+| `deployment_id`, `environment`, `sha` | Deployment identifier, environment and commit SHA |
+| `log_url`, `environment_url` | Deployment status log and environment links, when present |
 | `action` | What happened |
 | `actor` | Login of the user who caused the event, when known |
 | `author` | Login of the PR or issue author or the release publisher |
@@ -146,6 +151,7 @@ Each event is one line:
 - **Packages need `read:packages`.** Add the scope with `gh auth refresh -s read:packages`. Package polling costs 6 requests plus one per package linked to the repository.
 - **Container noise is filtered.** Untagged versions and versions tagged only `sha256-<digest>` (signatures, attestations, per-platform manifests) are skipped.
 - **Comments and reviews.** Comments cost 2 requests per poll: the repository's 100 most recently updated conversation comments and inline review comments. Reviews cost 1 request for the 30 most recently updated PRs plus 1 for each of those updated since the last poll. On startup, reviews are read for the `-n` most recently updated PRs. A PR with more than 100 reviews only shows its first 100. Comment events carry no `author`, so `author:` terms don't match them. Dismissed and pending reviews aren't reported. The `*` action includes all of these.
+- **Deployment polling is bounded.** Each poll reads the latest 100 deployments and up to 100 statuses per deployment (one request plus one per deployment). A status that repeats the previous status of the same deployment, with the same state and description, is skipped, since some CI systems post each state twice. Updates to deployments outside the latest 100, statuses outside the latest 100, and events more than 10 minutes behind the newest event seen can be missed. GitHub also expires historical statuses after 90 days. `deployment:created` avoids status requests. Private repositories require deployment read access; fine-grained tokens need the Deployments read permission.
 - **No resume.** A restart shows the last `-n` events again.
 - **Busy repositories.** One poll reads the 100 most recently updated issues and PRs and the latest 100 events. Changes beyond that between two polls are missed, as are list items that become visible more than 10 minutes after the newest one seen.
 
@@ -165,6 +171,7 @@ flowchart LR
   - `Releases`: the release list
   - `Refs`: `git/matching-refs/tags` or `heads`, diffed between polls. Each change is matched to its Events API entry for the actor
   - `Packages`: package versions of packages linked to the repository
+  - `Deployments`: deployment creation and status history from the [Deployments REST API](https://docs.github.com/en/rest/deployments/deployments) and [deployment statuses](https://docs.github.com/en/rest/deployments/statuses)
 - `internal/source/transport.go`: makes GET requests conditional with `If-None-Match`. GitHub does not count a `304 Not Modified` against the rate limit, so polling an idle repository is free. It records each source's `X-Poll-Interval` separately.
 - `internal/poll`: schedules each source at its own interval, filters and sorts events, and reports events and status to a sink.
 - `internal/event`: the normalized `Event`, the `--kinds` selection and the `--filter` query.

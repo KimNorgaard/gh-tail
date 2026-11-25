@@ -25,6 +25,13 @@ const (
 	Reviewed   = "reviewed"
 
 	ChangesRequested = "changes_requested"
+	Queued     = "queued"
+	InProgress = "in_progress"
+	Pending    = "pending"
+	Success    = "success"
+	Failure    = "failure"
+	Error      = "error"
+	Inactive   = "inactive"
 )
 
 // Actions lists the actions each kind's source emits, as observed from the API.
@@ -35,16 +42,18 @@ var Actions = map[Kind][]string{
 	Issue:   {Opened, Closed, Reopened, Assigned, Unassigned, Labeled, Unlabeled, Commented},
 	Release: {Published},
 	Package: {Published},
+	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
 }
 
 // DefaultActions are the actions a bare kind selects.
 var DefaultActions = map[Kind][]string{
-	Tag:     {Created},
-	Branch:  {Created, Pushed},
-	PR:      {Opened, Closed, Merged},
-	Issue:   {Opened, Closed},
-	Release: {Published},
-	Package: {Published},
+	Tag:        {Created},
+	Branch:     {Created, Pushed},
+	PR:         {Opened, Closed, Merged},
+	Issue:      {Opened, Closed},
+	Release:    {Published},
+	Package:    {Published},
+	Deployment: {Created, Queued, InProgress, Pending, Success, Failure, Error, Inactive},
 }
 
 // Selection holds the actions to show per kind. The action "*" selects every action,

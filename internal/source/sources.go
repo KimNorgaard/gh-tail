@@ -65,6 +65,9 @@ func New(client *api.RESTClient, gql *api.GraphQLClient, repo repository.Reposit
 	if sel[event.Package] != nil {
 		out = append(out, NewPackages(client, repo))
 	}
+	if sel[event.Deployment] != nil {
+		out = append(out, NewDeployments(client, repo, sel))
+	}
 	return out
 }
 

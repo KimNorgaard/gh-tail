@@ -47,7 +47,7 @@ func run(args []string) error {
 	flags := flag.NewFlagSet("gh-tail", flag.ContinueOnError)
 	flags.StringVar(&repoFlag, "R", "", "shorthand for --repo")
 	flags.StringVar(&repoFlag, "repo", "", "repository as [HOST/]OWNER/REPO (default: current repository)")
-	flags.StringVar(&kindsFlag, "kinds", "tag,pr,issue", "comma-separated kind, kind:action or kind:* entries. Kinds: tag,branch,pr,issue,release,package")
+	flags.StringVar(&kindsFlag, "kinds", "tag,pr,issue", "comma-separated kind, kind:action or kind:* entries. Kinds: tag,branch,pr,issue,release,package,deployment")
 	flags.StringVar(&filterFlag, "filter", "", "space-separated [-]actor:, author: or label: terms; * globs, @me is you")
 	flags.BoolVar(&jsonOut, "json", false, "print events as JSON lines")
 	flags.BoolVar(&interactive, "i", false, "shorthand for --interactive")
